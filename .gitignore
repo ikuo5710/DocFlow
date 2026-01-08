@@ -1,0 +1,55 @@
+# Temporary files
+tmp/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+
+# Build outputs
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Electron
+release/
+*.asar
+
+# Copied from node_modules (regenerate with npm install)
+public/pdf.worker.min.js
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+
+# Steering files (task management - temporary)
+.steering/*
+!.steering/.gitkeep
+
+# Lock files (keep package-lock.json for consistency)
+# yarn.lock
+
+.claude/settings.local.json
