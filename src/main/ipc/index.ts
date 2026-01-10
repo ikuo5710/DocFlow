@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import { registerFileHandlers } from './fileHandlers';
+import { registerOCRHandlers } from './ocrHandlers';
 
 export function registerIPCHandlers(): void {
   // Ping handler for testing IPC communication
@@ -9,4 +10,7 @@ export function registerIPCHandlers(): void {
 
   // File handlers
   registerFileHandlers();
+
+  // OCR handlers
+  registerOCRHandlers();
 }

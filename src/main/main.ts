@@ -20,7 +20,7 @@ function createWindow(): void {
   // In development, load from Vite dev server
   // In production (packaged app), load from built files
   if (!app.isPackaged) {
-    mainWindow.loadURL('http://localhost:5174');
+    mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
