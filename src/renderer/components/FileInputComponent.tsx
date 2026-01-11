@@ -10,10 +10,12 @@ pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 interface FileInputComponentProps {
   onFilesLoaded?: (files: FileInfo[]) => void;
+  onFileSelect?: (file: FileInfo) => void;
 }
 
 const FileInputComponent: React.FC<FileInputComponentProps> = ({
   onFilesLoaded,
+  onFileSelect,
 }) => {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -105,6 +107,13 @@ const FileInputComponent: React.FC<FileInputComponentProps> = ({
     fileInputRef.current?.click();
   }, []);
 
+  const handleFileClick = useCallback(
+    (file: FileInfo) => {
+      onFileSelect?.(file);
+    },
+    [onFileSelect]
+  );
+
   const getErrorMessage = (errorCode: string): string => {
     switch (errorCode) {
       case 'UNSUPPORTED_FORMAT':
@@ -172,7 +181,14 @@ const FileInputComponent: React.FC<FileInputComponentProps> = ({
           <ul className="file-list">
             {files.map((file, index) => (
               <li key={`${file.path}-${index}`} className="file-item">
-                <FilePreview file={file} />
+                <button
+                  type="button"
+                  className="file-item-button"
+                  onClick={() => handleFileClick(file)}
+                  title={`Open ${file.name}`}
+                >
+                  <FilePreview file={file} />
+                </button>
               </li>
             ))}
           </ul>
@@ -303,6 +319,26 @@ const FileInputComponent: React.FC<FileInputComponentProps> = ({
           border-radius: 8px;
           overflow: hidden;
           background-color: white;
+        }
+
+        .file-item-button {
+          width: 100%;
+          padding: 0;
+          border: none;
+          background: none;
+          cursor: pointer;
+          text-align: left;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .file-item-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-item-button:focus {
+          outline: 2px solid #2196f3;
+          outline-offset: 2px;
         }
       `}</style>
     </div>

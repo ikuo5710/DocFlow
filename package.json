@@ -9,7 +9,7 @@
   "scripts": {
     "postinstall": "node -e \"require('fs').cpSync('node_modules/pdfjs-dist/build/pdf.worker.min.js', 'public/pdf.worker.min.js')\"",
     "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
-    "dev:main": "wait-on http://localhost:5173 && tsc -p tsconfig.main.json && electron dist/main/main/main.js",
+    "dev:main": "wait-on http://localhost:5180 && tsc -p tsconfig.main.json && scripts\\run-electron.cmd .",
     "dev:renderer": "vite",
     "build": "npm run build:main && npm run build:renderer",
     "build:main": "tsc -p tsconfig.main.json",
@@ -22,8 +22,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.10.1",
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/state": "^6.5.3",
+    "@codemirror/view": "^6.39.9",
     "@mistralai/mistralai": "^1.11.0",
-    "electron": "39.0.0",
+    "codemirror": "^6.0.2",
+    "dotenv": "^16.4.5",
+    "electron": "^32.0.0",
     "pdf-parse": "^1.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -40,6 +46,7 @@
     "@vitejs/plugin-react": "^4.0.0",
     "@vitest/coverage-v8": "^1.0.0",
     "concurrently": "^8.0.0",
+    "cross-env": "^10.1.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-react": "^7.32.0",

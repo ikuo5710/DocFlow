@@ -33,7 +33,7 @@ export class OCRService {
     const dataUrl = `data:${mimeType};base64,${base64Data}`;
 
     const result = await this.retryWithBackoff(
-      () => this.callAPI(dataUrl, timeout),
+      () => this.callAPI(dataUrl, mimeType, timeout),
       maxRetries
     );
 
@@ -45,6 +45,7 @@ export class OCRService {
 
   private async callAPI(
     dataUrl: string,
+    mimeType: string,
     timeout: number
   ): Promise<{ markdown: string; pageCount: number }> {
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -55,13 +56,22 @@ export class OCRService {
     });
 
     try {
+      // Use document_url for PDFs, image_url for images
+      const isPdf = mimeType === 'application/pdf';
+      const document = isPdf
+        ? {
+            type: 'document_url' as const,
+            documentUrl: dataUrl,
+          }
+        : {
+            type: 'image_url' as const,
+            imageUrl: dataUrl,
+          };
+
       const response = await Promise.race([
         this.client.ocr.process({
           model: OCRService.MODEL,
-          document: {
-            type: 'image_url',
-            imageUrl: dataUrl,
-          },
+          document,
         }),
         timeoutPromise,
       ]);

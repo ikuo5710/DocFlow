@@ -2,6 +2,11 @@ import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { registerIPCHandlers } from './ipc';
 
+// Load environment variables from config/.env
+// In dev: __dirname = dist/main/main, so ../../../config/.env
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+require('dotenv').config({ path: path.join(__dirname, '../../../config/.env') });
+
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
@@ -20,7 +25,8 @@ function createWindow(): void {
   // In development, load from Vite dev server
   // In production (packaged app), load from built files
   if (!app.isPackaged) {
-    mainWindow.loadURL('http://localhost:5173');
+    const devPort = process.env.VITE_DEV_PORT || '5180';
+    mainWindow.loadURL(`http://localhost:${devPort}`);
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
