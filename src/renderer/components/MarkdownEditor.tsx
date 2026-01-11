@@ -1,8 +1,17 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { EditorState } from '@codemirror/state';
-import { EditorView, keymap, lineNumbers, highlightActiveLine } from '@codemirror/view';
+import { EditorView, keymap, lineNumbers, highlightActiveLine, ViewUpdate } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import EditorToolbar, { MarkdownCommand } from './EditorToolbar';
+import { useMarkdownCommands } from '../hooks/useMarkdownCommands';
+import {
+  applyBold,
+  applyItalic,
+  insertCode,
+  insertLink,
+  toggleHeading,
+} from '../utils/markdownCommands';
 
 interface MarkdownEditorProps {
   content: string;
@@ -20,14 +29,105 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const isInternalUpdate = useRef(false);
+  const onChangeRef = useRef(onChange);
+  const [editorView, setEditorView] = useState<EditorView | null>(null);
 
-  const handleChange = useCallback(
-    (update: { state: EditorState; docChanged: boolean }) => {
-      if (update.docChanged && !isInternalUpdate.current) {
-        onChange(update.state.doc.toString());
+  // onChangeをrefで保持（エディタ再生成を防ぐ）
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  // Markdownコマンドフック（ツールバー用）
+  const {
+    execBold,
+    execItalic,
+    execStrikethrough,
+    execHeading,
+    execCode,
+    execLink,
+    execBulletList,
+    execNumberedList,
+    execQuote,
+    execUndo,
+    execRedo,
+    canUndo,
+    canRedo,
+  } = useMarkdownCommands(editorView);
+
+  // 変更ハンドラ（refを使用して最新のonChangeを呼ぶ）
+  const handleChange = useCallback((update: ViewUpdate) => {
+    if (update.docChanged && !isInternalUpdate.current) {
+      onChangeRef.current(update.state.doc.toString());
+    }
+  }, []);
+
+  // ツールバーコマンドのハンドラ
+  const handleCommand = useCallback(
+    (command: MarkdownCommand) => {
+      switch (command.type) {
+        case 'bold':
+          execBold();
+          break;
+        case 'italic':
+          execItalic();
+          break;
+        case 'strikethrough':
+          execStrikethrough();
+          break;
+        case 'heading':
+          execHeading(command.level);
+          break;
+        case 'code':
+          execCode();
+          break;
+        case 'link':
+          execLink();
+          break;
+        case 'bulletList':
+          execBulletList();
+          break;
+        case 'numberedList':
+          execNumberedList();
+          break;
+        case 'quote':
+          execQuote();
+          break;
+        case 'undo':
+          execUndo();
+          break;
+        case 'redo':
+          execRedo();
+          break;
       }
     },
-    [onChange]
+    [
+      execBold,
+      execItalic,
+      execStrikethrough,
+      execHeading,
+      execCode,
+      execLink,
+      execBulletList,
+      execNumberedList,
+      execQuote,
+      execUndo,
+      execRedo,
+    ]
+  );
+
+  // キーボードショートカットのキーマップ（メモ化して再生成を防止）
+  const markdownKeymap = useMemo(
+    () =>
+      keymap.of([
+        { key: 'Mod-b', run: (view) => applyBold(view) },
+        { key: 'Mod-i', run: (view) => applyItalic(view) },
+        { key: 'Mod-`', run: (view) => insertCode(view) },
+        { key: 'Mod-k', run: (view) => insertLink(view) },
+        { key: 'Mod-1', run: (view) => toggleHeading(view, 1) },
+        { key: 'Mod-2', run: (view) => toggleHeading(view, 2) },
+        { key: 'Mod-3', run: (view) => toggleHeading(view, 3) },
+      ]),
+    []
   );
 
   useEffect(() => {
@@ -41,6 +141,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         history(),
         markdown(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
+        markdownKeymap,
         EditorView.updateListener.of(handleChange),
         EditorView.editable.of(!readOnly),
         EditorView.theme({
@@ -76,13 +177,16 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     });
 
     viewRef.current = view;
+    setEditorView(view);
 
     return () => {
       view.destroy();
       viewRef.current = null;
+      setEditorView(null);
     };
-  }, [handleChange, readOnly]);
+  }, [readOnly, handleChange, markdownKeymap]);
 
+  // content変更時にエディタを更新
   useEffect(() => {
     if (viewRef.current) {
       const currentContent = viewRef.current.state.doc.toString();
@@ -100,12 +204,19 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     }
   }, [content]);
 
+
   return (
     <div className="markdown-editor">
       <div className="editor-header">
         <span className="editor-title">Markdown</span>
         {readOnly && <span className="readonly-badge">Read Only</span>}
       </div>
+      <EditorToolbar
+        onCommand={handleCommand}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        disabled={readOnly}
+      />
       <div className="editor-container" ref={editorRef}>
         {!content && (
           <div className="editor-placeholder">{placeholder}</div>
