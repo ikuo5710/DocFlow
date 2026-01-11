@@ -4,6 +4,7 @@ import FileViewer from './FileViewer';
 import Splitter from './Splitter';
 import MarkdownEditor from './MarkdownEditor';
 import { useOCR } from '../hooks/useOCR';
+import { usePageMarkdown } from '../hooks/usePageMarkdown';
 
 interface ParallelViewerProps {
   file: FileInfo;
@@ -15,11 +16,22 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
   const [splitRatio, setSplitRatio] = useState(0.5);
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(1.0);
-  const [markdownContent, setMarkdownContent] = useState('');
 
   const { isProcessing, result, error, processFile, reset } = useOCR();
 
   const totalPages = file.pageCount ?? 1;
+
+  // ページごとのMarkdown管理
+  const {
+    getPageMarkdown,
+    setPageMarkdown,
+    initializeFromOCR,
+    clearAll: clearAllMarkdown,
+    getAllMarkdown,
+  } = usePageMarkdown(totalPages);
+
+  // 現在のページのMarkdown内容
+  const markdownContent = getPageMarkdown(currentPage);
 
   // Debug: log file info
   useEffect(() => {
@@ -38,19 +50,21 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
   // Note: processFile and reset are stable references from useOCR hook
   useEffect(() => {
     if (file.path) {
+      clearAllMarkdown();
       processFile(file.path);
     }
     return () => {
       reset();
     };
-  }, [file.path, processFile, reset]);
+  }, [file.path, processFile, reset, clearAllMarkdown]);
 
   // Update markdown content when OCR result is available
   useEffect(() => {
     if (result?.markdown) {
-      setMarkdownContent(result.markdown);
+      // OCR結果をページごとに分割して初期化
+      initializeFromOCR(result.markdown, totalPages);
     }
-  }, [result]);
+  }, [result, totalPages, initializeFromOCR]);
 
   const handleResize = useCallback((ratio: number) => {
     setSplitRatio(ratio);
@@ -64,14 +78,20 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
     setZoomLevel(zoom);
   }, []);
 
-  const handleMarkdownChange = useCallback((content: string) => {
-    setMarkdownContent(content);
-  }, []);
+  const handleMarkdownChange = useCallback(
+    (content: string) => {
+      // 現在のページのMarkdownを更新
+      setPageMarkdown(currentPage, content);
+    },
+    [currentPage, setPageMarkdown]
+  );
 
   const handleSave = useCallback(() => {
     // TODO: Implement save functionality
-    console.log('Save markdown:', markdownContent);
-  }, [markdownContent]);
+    // すべてのページのMarkdownを結合して保存
+    const allMarkdown = getAllMarkdown();
+    console.log('Save markdown:', allMarkdown);
+  }, [getAllMarkdown]);
 
   const handleRetryOCR = useCallback(() => {
     if (file.path) {

@@ -1,23 +1,48 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import FileInputComponent from './components/FileInputComponent';
 import ParallelViewer from './components/ParallelViewer';
+import FileNavigator from './components/FileNavigator';
 import { FileInfo } from '../types/file';
+import { useFileList } from './hooks/useFileList';
 
 const App: React.FC = () => {
-  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
+  const {
+    files,
+    currentFile,
+    currentFileIndex,
+    addFile,
+    removeFile,
+    selectFile,
+    selectPreviousFile,
+    selectNextFile,
+    clearAll,
+  } = useFileList();
 
-  const handleFileSelect = useCallback((file: FileInfo) => {
-    setSelectedFile(file);
-  }, []);
+  const handleFileSelect = useCallback(
+    (file: FileInfo) => {
+      addFile(file);
+    },
+    [addFile]
+  );
 
   const handleCloseViewer = useCallback(() => {
-    setSelectedFile(null);
-  }, []);
+    clearAll();
+  }, [clearAll]);
 
   return (
     <div className="app">
-      {selectedFile ? (
-        <ParallelViewer file={selectedFile} onClose={handleCloseViewer} />
+      {currentFile ? (
+        <>
+          <FileNavigator
+            files={files}
+            currentFileIndex={currentFileIndex}
+            onSelectFile={selectFile}
+            onSelectPrevious={selectPreviousFile}
+            onSelectNext={selectNextFile}
+            onRemoveFile={removeFile}
+          />
+          <ParallelViewer file={currentFile} onClose={handleCloseViewer} />
+        </>
       ) : (
         <>
           <h1>DocFlow - AI-Friendly Document Converter</h1>
