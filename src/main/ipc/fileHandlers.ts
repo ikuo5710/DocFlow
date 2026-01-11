@@ -1,6 +1,11 @@
 import { ipcMain } from 'electron';
 import { FileHandler } from '../handlers/FileHandler';
-import { FileValidationResult } from '../../types/file';
+import {
+  FileValidationResult,
+  MarkdownMetadata,
+  SaveDialogResult,
+  SaveFileResult,
+} from '../../types/file';
 
 const fileHandler = new FileHandler();
 
@@ -23,6 +28,25 @@ export function registerFileHandlers(): void {
     'file:metadata',
     async (_event, filePath: string): Promise<{ pageCount: number }> => {
       return await fileHandler.extractPDFMetadata(filePath);
+    }
+  );
+
+  ipcMain.handle(
+    'file:showSaveDialog',
+    async (_event, defaultFileName: string): Promise<SaveDialogResult> => {
+      return await fileHandler.showSaveDialog(defaultFileName);
+    }
+  );
+
+  ipcMain.handle(
+    'file:save',
+    async (
+      _event,
+      filePath: string,
+      content: string,
+      metadata?: MarkdownMetadata
+    ): Promise<SaveFileResult> => {
+      return await fileHandler.saveMarkdown(filePath, content, metadata);
     }
   );
 }

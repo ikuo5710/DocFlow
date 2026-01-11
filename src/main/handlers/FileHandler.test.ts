@@ -5,6 +5,16 @@ import { FileInputError } from '../../types/file';
 vi.mock('fs/promises', () => ({
   stat: vi.fn(),
   readFile: vi.fn(),
+  writeFile: vi.fn(),
+}));
+
+vi.mock('electron', () => ({
+  dialog: {
+    showSaveDialog: vi.fn(),
+  },
+  BrowserWindow: {
+    getFocusedWindow: vi.fn(),
+  },
 }));
 
 vi.mock('pdf-parse', () => ({
@@ -13,6 +23,7 @@ vi.mock('pdf-parse', () => ({
 
 import * as fs from 'fs/promises';
 import pdf from 'pdf-parse';
+import { dialog, BrowserWindow } from 'electron';
 
 describe('FileHandler', () => {
   let fileHandler: FileHandler;
@@ -199,6 +210,160 @@ describe('FileHandler', () => {
       await expect(
         fileHandler.extractPDFMetadata('/path/to/corrupted.pdf')
       ).rejects.toThrow(FileInputError);
+    });
+  });
+
+  describe('saveMarkdown', () => {
+    it('should save markdown content without metadata', async () => {
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+      const result = await fileHandler.saveMarkdown(
+        '/path/to/output.md',
+        '# Test Content\n\nSome text here.'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.filePath).toBe('/path/to/output.md');
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        '/path/to/output.md',
+        '# Test Content\n\nSome text here.',
+        'utf-8'
+      );
+    });
+
+    it('should save markdown content with YAML Front Matter metadata', async () => {
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+      const metadata = {
+        originalFilePath: '/path/to/original.pdf',
+        processedAt: '2026-01-11T10:30:00.000Z',
+      };
+
+      const result = await fileHandler.saveMarkdown(
+        '/path/to/output.md',
+        '# Test Content',
+        metadata
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.filePath).toBe('/path/to/output.md');
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        '/path/to/output.md',
+        '---\noriginal_file: /path/to/original.pdf\nprocessed_at: 2026-01-11T10:30:00.000Z\n---\n# Test Content',
+        'utf-8'
+      );
+    });
+
+    it('should handle permission denied error (EACCES)', async () => {
+      const error = new Error('Permission denied') as NodeJS.ErrnoException;
+      error.code = 'EACCES';
+      vi.mocked(fs.writeFile).mockRejectedValue(error);
+
+      const result = await fileHandler.saveMarkdown(
+        '/protected/path/output.md',
+        '# Content'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        'Permission denied: Cannot write to the specified location'
+      );
+    });
+
+    it('should handle permission denied error (EPERM)', async () => {
+      const error = new Error('Operation not permitted') as NodeJS.ErrnoException;
+      error.code = 'EPERM';
+      vi.mocked(fs.writeFile).mockRejectedValue(error);
+
+      const result = await fileHandler.saveMarkdown(
+        '/protected/path/output.md',
+        '# Content'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        'Permission denied: Cannot write to the specified location'
+      );
+    });
+
+    it('should handle disk full error (ENOSPC)', async () => {
+      const error = new Error('No space left on device') as NodeJS.ErrnoException;
+      error.code = 'ENOSPC';
+      vi.mocked(fs.writeFile).mockRejectedValue(error);
+
+      const result = await fileHandler.saveMarkdown(
+        '/path/to/output.md',
+        '# Content'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Disk space is full');
+    });
+
+    it('should handle generic write error', async () => {
+      vi.mocked(fs.writeFile).mockRejectedValue(new Error('Unknown write error'));
+
+      const result = await fileHandler.saveMarkdown(
+        '/path/to/output.md',
+        '# Content'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to save file: Unknown write error');
+    });
+  });
+
+  describe('showSaveDialog', () => {
+    it('should return file path when user selects a file', async () => {
+      vi.mocked(BrowserWindow.getFocusedWindow).mockReturnValue(
+        {} as Electron.BrowserWindow
+      );
+      vi.mocked(dialog.showSaveDialog).mockResolvedValue({
+        canceled: false,
+        filePath: '/selected/path/output.md',
+      });
+
+      const result = await fileHandler.showSaveDialog('default_ocr.md');
+
+      expect(result.canceled).toBe(false);
+      expect(result.filePath).toBe('/selected/path/output.md');
+      expect(dialog.showSaveDialog).toHaveBeenCalledWith(
+        expect.anything(),
+        {
+          defaultPath: 'default_ocr.md',
+          filters: [{ name: 'Markdown', extensions: ['md'] }],
+        }
+      );
+    });
+
+    it('should return canceled when user cancels dialog', async () => {
+      vi.mocked(BrowserWindow.getFocusedWindow).mockReturnValue(null);
+      vi.mocked(dialog.showSaveDialog).mockResolvedValue({
+        canceled: true,
+        filePath: '',
+      });
+
+      const result = await fileHandler.showSaveDialog('default_ocr.md');
+
+      expect(result.canceled).toBe(true);
+      expect(result.filePath).toBe('');
+    });
+
+    it('should work without focused window', async () => {
+      vi.mocked(BrowserWindow.getFocusedWindow).mockReturnValue(null);
+      vi.mocked(dialog.showSaveDialog).mockResolvedValue({
+        canceled: false,
+        filePath: '/path/output.md',
+      });
+
+      const result = await fileHandler.showSaveDialog('test.md');
+
+      expect(result.canceled).toBe(false);
+      // When no focused window, dialog.showSaveDialog is called with options only
+      expect(dialog.showSaveDialog).toHaveBeenCalledWith({
+        defaultPath: 'test.md',
+        filters: [{ name: 'Markdown', extensions: ['md'] }],
+      });
     });
   });
 });

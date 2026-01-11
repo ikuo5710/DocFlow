@@ -3,8 +3,10 @@ import { FileInfo } from '../../types/file';
 import FileViewer from './FileViewer';
 import Splitter from './Splitter';
 import MarkdownEditor from './MarkdownEditor';
+import Toast, { ToastType } from './Toast';
 import { useOCR } from '../hooks/useOCR';
 import { usePageMarkdown } from '../hooks/usePageMarkdown';
+import { useFileSave } from '../hooks/useFileSave';
 
 interface ParallelViewerProps {
   file: FileInfo;
@@ -32,6 +34,14 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
 
   // 現在のページのMarkdown内容
   const markdownContent = getPageMarkdown(currentPage);
+
+  // ファイル保存
+  const { isSaving, savedPath, error: saveError, saveFile, clearSavedPath, clearError: clearSaveError } = useFileSave();
+
+  // Toast表示用の状態
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<ToastType>('success');
 
   // Debug: log file info
   useEffect(() => {
@@ -86,12 +96,54 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
     [currentPage, setPageMarkdown]
   );
 
-  const handleSave = useCallback(() => {
-    // TODO: Implement save functionality
+  // 保存成功時のToast表示
+  useEffect(() => {
+    if (savedPath) {
+      const fileName = savedPath.split(/[/\\]/).pop() ?? 'file';
+      setToastMessage(`Saved: ${fileName}`);
+      setToastType('success');
+      setToastVisible(true);
+      clearSavedPath();
+    }
+  }, [savedPath, clearSavedPath]);
+
+  // 保存エラー時のToast表示
+  useEffect(() => {
+    if (saveError) {
+      setToastMessage(saveError);
+      setToastType('error');
+      setToastVisible(true);
+      clearSaveError();
+    }
+  }, [saveError, clearSaveError]);
+
+  const handleSave = useCallback(async () => {
     // すべてのページのMarkdownを結合して保存
     const allMarkdown = getAllMarkdown();
-    console.log('Save markdown:', allMarkdown);
-  }, [getAllMarkdown]);
+
+    if (!allMarkdown.trim()) {
+      setToastMessage('No content to save');
+      setToastType('error');
+      setToastVisible(true);
+      return;
+    }
+
+    // デフォルトファイル名: 元ファイル名 + "_ocr.md"
+    const baseName = file.name.replace(/\.[^/.]+$/, ''); // 拡張子を除去
+    const defaultFileName = `${baseName}_ocr.md`;
+
+    // メタデータ
+    const metadata = {
+      originalFilePath: file.path,
+      processedAt: new Date().toISOString(),
+    };
+
+    await saveFile(defaultFileName, allMarkdown, metadata);
+  }, [getAllMarkdown, file.name, file.path, saveFile]);
+
+  const handleCloseToast = useCallback(() => {
+    setToastVisible(false);
+  }, []);
 
   const handleRetryOCR = useCallback(() => {
     if (file.path) {
@@ -122,8 +174,12 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
               Retry OCR
             </button>
           )}
-          <button className="save-button" onClick={handleSave} disabled={isProcessing}>
-            Save
+          <button
+            className="save-button"
+            onClick={handleSave}
+            disabled={isProcessing || isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>
@@ -328,6 +384,13 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
           background-color: #1d4ed8;
         }
       `}</style>
+
+      <Toast
+        message={toastMessage}
+        type={toastType}
+        visible={toastVisible}
+        onClose={handleCloseToast}
+      />
     </div>
   );
 };

@@ -1,11 +1,15 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { dialog, BrowserWindow } from 'electron';
 import pdf from 'pdf-parse';
 import {
   FileInfo,
   FileType,
   FileInputError,
   FileValidationResult,
+  MarkdownMetadata,
+  SaveDialogResult,
+  SaveFileResult,
 } from '../../types/file';
 
 export class FileHandler {
@@ -164,6 +168,84 @@ export class FileHandler {
         return 'image/png';
       case 'jpeg':
         return 'image/jpeg';
+    }
+  }
+
+  /**
+   * 保存ダイアログを表示する
+   */
+  async showSaveDialog(defaultFileName: string): Promise<SaveDialogResult> {
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+
+    const options = {
+      defaultPath: defaultFileName,
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    };
+
+    const result = focusedWindow
+      ? await dialog.showSaveDialog(focusedWindow, options)
+      : await dialog.showSaveDialog(options);
+
+    return {
+      canceled: result.canceled,
+      filePath: result.filePath,
+    };
+  }
+
+  /**
+   * Markdownファイルを保存する
+   */
+  async saveMarkdown(
+    filePath: string,
+    content: string,
+    metadata?: MarkdownMetadata
+  ): Promise<SaveFileResult> {
+    try {
+      let fileContent = content;
+
+      // メタデータがある場合はYAML Front Matterとして追加
+      if (metadata) {
+        const frontMatter = [
+          '---',
+          `original_file: ${metadata.originalFilePath}`,
+          `processed_at: ${metadata.processedAt}`,
+          '---',
+          '',
+        ].join('\n');
+        fileContent = frontMatter + content;
+      }
+
+      await fs.writeFile(filePath, fileContent, 'utf-8');
+
+      return {
+        success: true,
+        filePath,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
+      // エラーの種類を判別
+      if (error instanceof Error && 'code' in error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === 'EACCES' || code === 'EPERM') {
+          return {
+            success: false,
+            error: 'Permission denied: Cannot write to the specified location',
+          };
+        }
+        if (code === 'ENOSPC') {
+          return {
+            success: false,
+            error: 'Disk space is full',
+          };
+        }
+      }
+
+      return {
+        success: false,
+        error: `Failed to save file: ${errorMessage}`,
+      };
     }
   }
 }

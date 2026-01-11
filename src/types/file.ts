@@ -32,3 +32,21 @@ export interface FileValidationResult {
   error?: FileInputError;
   fileInfo?: FileInfo;
 }
+
+// ファイル保存関連の型定義
+
+export interface MarkdownMetadata {
+  originalFilePath: string;
+  processedAt: string;
+}
+
+export interface SaveDialogResult {
+  canceled: boolean;
+  filePath?: string;
+}
+
+export interface SaveFileResult {
+  success: boolean;
+  filePath?: string;
+  error?: string;
+}
