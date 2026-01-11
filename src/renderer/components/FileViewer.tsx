@@ -5,7 +5,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { FileInfo } from '../../types/file';
 import PageNavigator from './PageNavigator';
 
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+pdfjs.GlobalWorkerOptions.workerSrc = './pdf.worker.min.js';
 
 interface FileViewerProps {
   file: FileInfo;

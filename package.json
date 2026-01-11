@@ -14,12 +14,47 @@
     "build": "npm run build:main && npm run build:renderer",
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit"
+  },
+  "build": {
+    "appId": "com.docflow.app",
+    "productName": "DocFlow",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/pdfjs-dist/build/pdf.worker.min.js",
+        "to": "pdf.worker.min.js"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "${productName}-${version}-portable.${ext}",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    }
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.1",
@@ -29,13 +64,13 @@
     "@mistralai/mistralai": "^1.11.0",
     "codemirror": "^6.0.2",
     "dotenv": "^16.4.5",
-    "electron": "^32.0.0",
     "pdf-parse": "^1.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-pdf": "^7.7.0"
   },
   "devDependencies": {
+    "electron": "^32.0.0",
     "@eslint/js": "^9.0.0",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^14.0.0",
@@ -47,6 +82,7 @@
     "@vitest/coverage-v8": "^1.0.0",
     "concurrently": "^8.0.0",
     "cross-env": "^10.1.0",
+    "electron-builder": "^26.4.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-react": "^7.32.0",
