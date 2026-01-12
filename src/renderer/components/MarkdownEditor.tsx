@@ -144,6 +144,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         markdownKeymap,
         EditorView.updateListener.of(handleChange),
         EditorView.editable.of(!readOnly),
+        EditorView.lineWrapping,
         EditorView.theme({
           '&': {
             height: '100%',
@@ -155,6 +156,11 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           },
           '.cm-content': {
             padding: '16px',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          },
+          '.cm-line': {
+            wordBreak: 'break-word',
           },
           '.cm-gutters': {
             backgroundColor: '#f8fafc',
