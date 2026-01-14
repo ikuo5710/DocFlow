@@ -18,11 +18,15 @@ export type MarkdownCommand =
   | { type: 'undo' }
   | { type: 'redo' };
 
+export type EditorViewMode = 'text' | 'preview';
+
 interface EditorToolbarProps {
   onCommand: (command: MarkdownCommand) => void;
   canUndo: boolean;
   canRedo: boolean;
   disabled?: boolean;
+  viewMode?: EditorViewMode;
+  onViewModeChange?: (mode: EditorViewMode) => void;
 }
 
 interface ToolbarButtonProps {
@@ -63,6 +67,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   canUndo,
   canRedo,
   disabled = false,
+  viewMode = 'text',
+  onViewModeChange,
 }) => {
   const handleCommand = useCallback(
     (command: MarkdownCommand) => {
@@ -72,6 +78,12 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     },
     [onCommand, disabled]
   );
+
+  const handleViewModeToggle = useCallback(() => {
+    if (onViewModeChange) {
+      onViewModeChange(viewMode === 'text' ? 'preview' : 'text');
+    }
+  }, [viewMode, onViewModeChange]);
 
   return (
     <div className="editor-toolbar" role="toolbar" aria-label="Markdown formatting">
@@ -203,6 +215,30 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </ToolbarButton>
       </div>
 
+      {/* スペーサー（右寄せ用） */}
+      <div className="toolbar-spacer" />
+
+      {/* 表示モード切り替えボタン */}
+      {onViewModeChange && (
+        <div className="toolbar-group">
+          <button
+            type="button"
+            className={`view-mode-toggle ${viewMode === 'preview' ? 'view-mode-toggle--active' : ''}`}
+            onClick={handleViewModeToggle}
+            title={viewMode === 'text' ? 'プレビュー表示 (Ctrl+Shift+P)' : 'テキスト編集 (Ctrl+Shift+P)'}
+            aria-label={viewMode === 'text' ? 'プレビュー表示に切り替え' : 'テキスト編集に切り替え'}
+            aria-pressed={viewMode === 'preview'}
+          >
+            <span className="view-mode-toggle__icon">
+              {viewMode === 'text' ? '👁' : '✏️'}
+            </span>
+            <span className="view-mode-toggle__label">
+              {viewMode === 'text' ? 'Preview' : 'Edit'}
+            </span>
+          </button>
+        </div>
+      )}
+
       <style>{`
         .editor-toolbar {
           display: flex;
@@ -267,6 +303,48 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
         .toolbar-button s {
           text-decoration: line-through;
+        }
+
+        .toolbar-spacer {
+          flex: 1;
+        }
+
+        .view-mode-toggle {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 10px;
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          background-color: #ffffff;
+          color: #374151;
+          font-size: 12px;
+          font-family: inherit;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .view-mode-toggle:hover {
+          background-color: #f3f4f6;
+          border-color: #d1d5db;
+        }
+
+        .view-mode-toggle--active {
+          background-color: #dbeafe;
+          border-color: #3b82f6;
+          color: #1d4ed8;
+        }
+
+        .view-mode-toggle--active:hover {
+          background-color: #bfdbfe;
+        }
+
+        .view-mode-toggle__icon {
+          font-size: 14px;
+        }
+
+        .view-mode-toggle__label {
+          font-weight: 500;
         }
       `}</style>
     </div>

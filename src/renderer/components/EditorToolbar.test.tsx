@@ -243,4 +243,121 @@ describe('EditorToolbar', () => {
       expect(toolbar.getAttribute('aria-label')).toBe('Markdown formatting');
     });
   });
+
+  describe('表示モード切り替え', () => {
+    it('onViewModeChangeが設定されていない場合、トグルボタンが表示されない', () => {
+      render(<EditorToolbar {...defaultProps} />);
+
+      expect(screen.queryByText('Preview')).toBeNull();
+      expect(screen.queryByText('Edit')).toBeNull();
+    });
+
+    it('viewMode=textの場合、Previewラベルが表示される', () => {
+      const onViewModeChange = vi.fn();
+      render(
+        <EditorToolbar
+          {...defaultProps}
+          viewMode="text"
+          onViewModeChange={onViewModeChange}
+        />
+      );
+
+      expect(screen.getByText('Preview')).toBeDefined();
+    });
+
+    it('viewMode=previewの場合、Editラベルが表示される', () => {
+      const onViewModeChange = vi.fn();
+      render(
+        <EditorToolbar
+          {...defaultProps}
+          viewMode="preview"
+          onViewModeChange={onViewModeChange}
+        />
+      );
+
+      expect(screen.getByText('Edit')).toBeDefined();
+    });
+
+    it('トグルボタンをクリックするとviewModeが切り替わる（text→preview）', () => {
+      const onViewModeChange = vi.fn();
+      render(
+        <EditorToolbar
+          {...defaultProps}
+          viewMode="text"
+          onViewModeChange={onViewModeChange}
+        />
+      );
+
+      fireEvent.click(screen.getByLabelText('プレビュー表示に切り替え'));
+
+      expect(onViewModeChange).toHaveBeenCalledWith('preview');
+    });
+
+    it('トグルボタンをクリックするとviewModeが切り替わる（preview→text）', () => {
+      const onViewModeChange = vi.fn();
+      render(
+        <EditorToolbar
+          {...defaultProps}
+          viewMode="preview"
+          onViewModeChange={onViewModeChange}
+        />
+      );
+
+      fireEvent.click(screen.getByLabelText('テキスト編集に切り替え'));
+
+      expect(onViewModeChange).toHaveBeenCalledWith('text');
+    });
+
+    it('viewMode=previewの場合、トグルボタンにactiveクラスが付与される', () => {
+      const onViewModeChange = vi.fn();
+      const { container } = render(
+        <EditorToolbar
+          {...defaultProps}
+          viewMode="preview"
+          onViewModeChange={onViewModeChange}
+        />
+      );
+
+      const toggleButton = container.querySelector('.view-mode-toggle');
+      expect(toggleButton?.classList.contains('view-mode-toggle--active')).toBe(true);
+    });
+
+    it('viewMode=textの場合、トグルボタンにactiveクラスが付与されない', () => {
+      const onViewModeChange = vi.fn();
+      const { container } = render(
+        <EditorToolbar
+          {...defaultProps}
+          viewMode="text"
+          onViewModeChange={onViewModeChange}
+        />
+      );
+
+      const toggleButton = container.querySelector('.view-mode-toggle');
+      expect(toggleButton?.classList.contains('view-mode-toggle--active')).toBe(false);
+    });
+
+    it('トグルボタンに適切なaria-pressed属性が設定される', () => {
+      const onViewModeChange = vi.fn();
+
+      // text モードの場合
+      const { rerender } = render(
+        <EditorToolbar
+          {...defaultProps}
+          viewMode="text"
+          onViewModeChange={onViewModeChange}
+        />
+      );
+      expect(screen.getByLabelText('プレビュー表示に切り替え').getAttribute('aria-pressed')).toBe('false');
+
+      // preview モードの場合
+      rerender(
+        <EditorToolbar
+          {...defaultProps}
+          viewMode="preview"
+          onViewModeChange={onViewModeChange}
+        />
+      );
+      expect(screen.getByLabelText('テキスト編集に切り替え').getAttribute('aria-pressed')).toBe('true');
+    });
+  });
 });
