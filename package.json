@@ -1,6 +1,6 @@
 {
   "name": "docflow",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI-Friendly Document Converter - Convert PDFs and images to Markdown using OCR",
   "main": "dist/main/main/main.js",
   "author": "DocFlow Team",

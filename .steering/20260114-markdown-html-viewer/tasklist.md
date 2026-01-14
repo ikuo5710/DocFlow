@@ -36,16 +36,20 @@
 
 - [x] npm run devで動作確認（ユーザー確認済み）
 - [x] npm testでテスト実行（228テスト全パス）
-- [ ] 機能ブランチを作成してコミット
-- [ ] PRを作成
+- [x] 機能ブランチを作成してコミット（feature/issue-3-markdown-html-viewer）
+- [x] PRを作成（https://github.com/ikuo5710/DocFlow/pull/4）
 
 ---
 
 ## 実装後の振り返り
 
-（実装完了後に記入）
-
-- 実装完了日:
+- 実装完了日: 2026-01-14
 - 計画と実績の差分:
+  - 計画通りに実装完了
+  - テストでjest-domが使えず、アサーション方法を調整（toBeDefined, toContainなど）
 - 学んだこと:
+  - CodeMirror 6のモック設定が複雑（static properties含む）
+  - ReactでdangerouslySetInnerHTMLとchildrenは併用不可（Fragmentで解決）
+  - markedのブレーク設定がリスト変換に影響
 - 次回への改善提案:
+  - jest-domのセットアップを検討し、より直感的なテストを書けるようにする
