@@ -248,15 +248,16 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         onViewModeChange={handleViewModeChange}
       />
       <div className="editor-content-area">
-        {viewMode === 'text' ? (
-          <div className="editor-container" ref={editorRef}>
-            {!content && (
-              <div className="editor-placeholder">{placeholder}</div>
-            )}
-          </div>
-        ) : (
-          <MarkdownPreview content={content} />
-        )}
+        <div
+          className="editor-container"
+          ref={editorRef}
+          style={{ display: viewMode === 'text' ? 'flex' : 'none' }}
+        >
+          {!content && (
+            <div className="editor-placeholder">{placeholder}</div>
+          )}
+        </div>
+        {viewMode === 'preview' && <MarkdownPreview content={content} />}
       </div>
 
       <style>{`
