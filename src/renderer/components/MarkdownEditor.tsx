@@ -3,7 +3,8 @@ import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, ViewUpdate } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import EditorToolbar, { MarkdownCommand } from './EditorToolbar';
+import EditorToolbar, { MarkdownCommand, EditorViewMode } from './EditorToolbar';
+import MarkdownPreview from './MarkdownPreview';
 import { useMarkdownCommands } from '../hooks/useMarkdownCommands';
 import {
   applyBold,
@@ -31,6 +32,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const isInternalUpdate = useRef(false);
   const onChangeRef = useRef(onChange);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
+  const [viewMode, setViewMode] = useState<EditorViewMode>('text');
 
   // onChangeをrefで保持（エディタ再生成を防ぐ）
   useEffect(() => {
@@ -59,6 +61,11 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     if (update.docChanged && !isInternalUpdate.current) {
       onChangeRef.current(update.state.doc.toString());
     }
+  }, []);
+
+  // 表示モード切り替えハンドラ
+  const handleViewModeChange = useCallback((mode: EditorViewMode) => {
+    setViewMode(mode);
   }, []);
 
   // ツールバーコマンドのハンドラ
@@ -129,6 +136,21 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       ]),
     []
   );
+
+  // Ctrl+Shift+P でプレビュー切り替え（グローバルキーボードショートカット）
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        setViewMode((prev) => (prev === 'text' ? 'preview' : 'text'));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -222,10 +244,18 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         canUndo={canUndo}
         canRedo={canRedo}
         disabled={readOnly}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
       />
-      <div className="editor-container" ref={editorRef}>
-        {!content && (
-          <div className="editor-placeholder">{placeholder}</div>
+      <div className="editor-content-area">
+        {viewMode === 'text' ? (
+          <div className="editor-container" ref={editorRef}>
+            {!content && (
+              <div className="editor-placeholder">{placeholder}</div>
+            )}
+          </div>
+        ) : (
+          <MarkdownPreview content={content} />
         )}
       </div>
 
@@ -258,6 +288,14 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           background-color: #fef3c7;
           color: #92400e;
           border-radius: 4px;
+        }
+
+        .editor-content-area {
+          flex: 1;
+          overflow: hidden;
+          position: relative;
+          display: flex;
+          flex-direction: column;
         }
 
         .editor-container {
