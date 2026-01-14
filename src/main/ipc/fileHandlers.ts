@@ -5,6 +5,8 @@ import {
   MarkdownMetadata,
   SaveDialogResult,
   SaveFileResult,
+  OCRCacheCheckResult,
+  OCRCacheReadResult,
 } from '../../types/file';
 
 const fileHandler = new FileHandler();
@@ -47,6 +49,20 @@ export function registerFileHandlers(): void {
       metadata?: MarkdownMetadata
     ): Promise<SaveFileResult> => {
       return await fileHandler.saveMarkdown(filePath, content, metadata);
+    }
+  );
+
+  ipcMain.handle(
+    'file:checkOCRCache',
+    async (_event, filePath: string): Promise<OCRCacheCheckResult> => {
+      return await fileHandler.checkOCRCacheExists(filePath);
+    }
+  );
+
+  ipcMain.handle(
+    'file:readOCRCache',
+    async (_event, filePath: string): Promise<OCRCacheReadResult> => {
+      return await fileHandler.readOCRCache(filePath);
     }
   );
 }

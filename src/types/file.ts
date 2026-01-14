@@ -50,3 +50,14 @@ export interface SaveFileResult {
   filePath?: string;
   error?: string;
 }
+
+// OCRキャッシュ関連の型定義
+
+export interface OCRCacheCheckResult {
+  exists: boolean;
+  cachePath: string;
+}
+
+export interface OCRCacheReadResult {
+  content: string;
+}

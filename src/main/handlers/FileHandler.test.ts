@@ -6,6 +6,7 @@ vi.mock('fs/promises', () => ({
   stat: vi.fn(),
   readFile: vi.fn(),
   writeFile: vi.fn(),
+  access: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
@@ -364,6 +365,64 @@ describe('FileHandler', () => {
         defaultPath: 'test.md',
         filters: [{ name: 'Markdown', extensions: ['md'] }],
       });
+    });
+  });
+
+  describe('getOCRCachePath', () => {
+    it('should generate correct cache path for PDF', () => {
+      const result = fileHandler.getOCRCachePath('/path/to/document.pdf');
+      expect(result).toBe('/path/to/document.pdf_ocr.md');
+    });
+
+    it('should generate correct cache path for PNG', () => {
+      const result = fileHandler.getOCRCachePath('/path/to/image.png');
+      expect(result).toBe('/path/to/image.png_ocr.md');
+    });
+
+    it('should generate correct cache path for JPEG', () => {
+      const result = fileHandler.getOCRCachePath('/path/to/photo.jpg');
+      expect(result).toBe('/path/to/photo.jpg_ocr.md');
+    });
+  });
+
+  describe('checkOCRCacheExists', () => {
+    it('should return exists: true when cache file exists', async () => {
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+
+      const result = await fileHandler.checkOCRCacheExists('/path/to/document.pdf');
+
+      expect(result.exists).toBe(true);
+      expect(result.cachePath).toBe('/path/to/document.pdf_ocr.md');
+      expect(fs.access).toHaveBeenCalledWith('/path/to/document.pdf_ocr.md');
+    });
+
+    it('should return exists: false when cache file does not exist', async () => {
+      vi.mocked(fs.access).mockRejectedValue(new Error('ENOENT'));
+
+      const result = await fileHandler.checkOCRCacheExists('/path/to/document.pdf');
+
+      expect(result.exists).toBe(false);
+      expect(result.cachePath).toBe('/path/to/document.pdf_ocr.md');
+    });
+  });
+
+  describe('readOCRCache', () => {
+    it('should read cache file content successfully', async () => {
+      const cacheContent = '---\noriginal_file: /path/to/doc.pdf\n---\n# OCR Result\n\nSome text.';
+      vi.mocked(fs.readFile).mockResolvedValue(cacheContent);
+
+      const result = await fileHandler.readOCRCache('/path/to/document.pdf');
+
+      expect(result.content).toBe(cacheContent);
+      expect(fs.readFile).toHaveBeenCalledWith('/path/to/document.pdf_ocr.md', 'utf-8');
+    });
+
+    it('should throw FileInputError when cache file cannot be read', async () => {
+      vi.mocked(fs.readFile).mockRejectedValue(new Error('Permission denied'));
+
+      await expect(fileHandler.readOCRCache('/path/to/document.pdf')).rejects.toThrow(
+        FileInputError
+      );
     });
   });
 });
