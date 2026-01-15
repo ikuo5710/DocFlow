@@ -172,6 +172,48 @@ export class FileHandler {
   }
 
   /**
+   * OCRキャッシュファイルのパスを生成する
+   * 例: /path/to/document.pdf → /path/to/document_ocr.md
+   */
+  getOCRCachePath(originalFilePath: string): string {
+    // 拡張子を除去してから _ocr.md を付加
+    const lastDotIndex = originalFilePath.lastIndexOf('.');
+    const basePath = lastDotIndex > 0 ? originalFilePath.slice(0, lastDotIndex) : originalFilePath;
+    return `${basePath}_ocr.md`;
+  }
+
+  /**
+   * OCRキャッシュファイルの存在をチェックする
+   */
+  async checkOCRCacheExists(
+    originalFilePath: string
+  ): Promise<{ exists: boolean; cachePath: string }> {
+    const cachePath = this.getOCRCachePath(originalFilePath);
+    try {
+      await fs.access(cachePath);
+      return { exists: true, cachePath };
+    } catch {
+      return { exists: false, cachePath };
+    }
+  }
+
+  /**
+   * OCRキャッシュファイルを読み込む
+   */
+  async readOCRCache(originalFilePath: string): Promise<{ content: string }> {
+    const cachePath = this.getOCRCachePath(originalFilePath);
+    try {
+      const content = await fs.readFile(cachePath, 'utf-8');
+      return { content };
+    } catch (error) {
+      throw new FileInputError(
+        `Failed to read OCR cache file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'READ_ERROR'
+      );
+    }
+  }
+
+  /**
    * 保存ダイアログを表示する
    */
   async showSaveDialog(defaultFileName: string): Promise<SaveDialogResult> {

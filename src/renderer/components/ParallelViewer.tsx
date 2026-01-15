@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { FileInfo } from '../../types/file';
+import { FileInfo, OCRCacheCheckResult, OCRCacheReadResult } from '../../types/file';
 import FileViewer from './FileViewer';
 import Splitter from './Splitter';
 import MarkdownEditor from './MarkdownEditor';
@@ -7,6 +7,17 @@ import Toast, { ToastType } from './Toast';
 import { useOCR } from '../hooks/useOCR';
 import { usePageMarkdown } from '../hooks/usePageMarkdown';
 import { useFileSave } from '../hooks/useFileSave';
+
+// Electron IPC interface
+declare global {
+  interface Window {
+    electron: {
+      ipcRenderer: {
+        invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
+      };
+    };
+  }
+}
 
 interface ParallelViewerProps {
   file: FileInfo;
@@ -43,6 +54,9 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<ToastType>('success');
 
+  // キャッシュ読み込み状態
+  const [loadedFromCache, setLoadedFromCache] = useState(false);
+
   // Debug: log file info
   useEffect(() => {
     console.log('ParallelViewer file:', {
@@ -56,17 +70,60 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
     });
   }, [file]);
 
-  // Process OCR when file is loaded
-  // Note: processFile and reset are stable references from useOCR hook
+  // Check for OCR cache and load it, or process OCR
   useEffect(() => {
-    if (file.path) {
+    const loadFileContent = async () => {
+      if (!file.path) return;
+
       clearAllMarkdown();
-      processFile(file.path);
-    }
+      setLoadedFromCache(false);
+
+      try {
+        // Check if OCR cache exists
+        const cacheCheckResult = await window.electron.ipcRenderer.invoke(
+          'file:checkOCRCache',
+          file.path
+        ) as OCRCacheCheckResult;
+
+        if (cacheCheckResult.exists) {
+          // Load from cache
+          try {
+            const cacheReadResult = await window.electron.ipcRenderer.invoke(
+              'file:readOCRCache',
+              file.path
+            ) as OCRCacheReadResult;
+
+            // Initialize markdown from cache
+            initializeFromOCR(cacheReadResult.content, totalPages);
+            setLoadedFromCache(true);
+
+            // Show toast notification
+            setToastMessage('Loaded from cached OCR result');
+            setToastType('success');
+            setToastVisible(true);
+
+            return; // Skip OCR processing
+          } catch (cacheReadError) {
+            console.warn('Failed to read OCR cache, falling back to OCR:', cacheReadError);
+            // Fall through to OCR processing
+          }
+        }
+
+        // No cache or cache read failed, process OCR
+        processFile(file.path);
+      } catch (error) {
+        console.error('Error checking OCR cache:', error);
+        // Fall back to OCR processing
+        processFile(file.path);
+      }
+    };
+
+    loadFileContent();
+
     return () => {
       reset();
     };
-  }, [file.path, processFile, reset, clearAllMarkdown]);
+  }, [file.path, processFile, reset, clearAllMarkdown, initializeFromOCR, totalPages]);
 
   // Update markdown content when OCR result is available
   useEffect(() => {

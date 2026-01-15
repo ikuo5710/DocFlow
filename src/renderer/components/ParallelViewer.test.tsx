@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ParallelViewer from './ParallelViewer';
 import { FileInfo } from '../../types/file';
@@ -49,6 +49,18 @@ const mockUseOCR = (overrides = {}) => ({
   ...overrides,
 });
 
+// Mock window.electron for IPC calls
+const mockIpcInvoke = vi.fn();
+
+Object.defineProperty(window, 'electron', {
+  value: {
+    ipcRenderer: {
+      invoke: mockIpcInvoke,
+    },
+  },
+  writable: true,
+});
+
 describe('ParallelViewer', () => {
   const mockFile: FileInfo = {
     path: '/path/to/test.pdf',
@@ -64,6 +76,8 @@ describe('ParallelViewer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(useOCRModule, 'useOCR').mockReturnValue(mockUseOCR());
+    // Default: no cache exists, fall back to OCR
+    mockIpcInvoke.mockResolvedValue({ exists: false, cachePath: '' });
   });
 
   describe('rendering', () => {
@@ -109,10 +123,12 @@ describe('ParallelViewer', () => {
       expect(mockOnClose).toHaveBeenCalledTimes(1);
     });
 
-    it('should process OCR when file is loaded', () => {
+    it('should process OCR when file is loaded', async () => {
       render(<ParallelViewer file={mockFile} onClose={mockOnClose} />);
 
-      expect(mockProcessFile).toHaveBeenCalledWith('/path/to/test.pdf');
+      await waitFor(() => {
+        expect(mockProcessFile).toHaveBeenCalledWith('/path/to/test.pdf');
+      });
     });
   });
 
@@ -218,10 +234,12 @@ describe('ParallelViewer', () => {
       expect(screen.getByText('image.png')).toBeInTheDocument();
     });
 
-    it('should process OCR for image files', () => {
+    it('should process OCR for image files', async () => {
       render(<ParallelViewer file={mockImageFile} onClose={mockOnClose} />);
 
-      expect(mockProcessFile).toHaveBeenCalledWith('/path/to/image.png');
+      await waitFor(() => {
+        expect(mockProcessFile).toHaveBeenCalledWith('/path/to/image.png');
+      });
     });
   });
 });
