@@ -371,17 +371,17 @@ describe('FileHandler', () => {
   describe('getOCRCachePath', () => {
     it('should generate correct cache path for PDF', () => {
       const result = fileHandler.getOCRCachePath('/path/to/document.pdf');
-      expect(result).toBe('/path/to/document.pdf_ocr.md');
+      expect(result).toBe('/path/to/document_ocr.md');
     });
 
     it('should generate correct cache path for PNG', () => {
       const result = fileHandler.getOCRCachePath('/path/to/image.png');
-      expect(result).toBe('/path/to/image.png_ocr.md');
+      expect(result).toBe('/path/to/image_ocr.md');
     });
 
     it('should generate correct cache path for JPEG', () => {
       const result = fileHandler.getOCRCachePath('/path/to/photo.jpg');
-      expect(result).toBe('/path/to/photo.jpg_ocr.md');
+      expect(result).toBe('/path/to/photo_ocr.md');
     });
   });
 
@@ -392,8 +392,8 @@ describe('FileHandler', () => {
       const result = await fileHandler.checkOCRCacheExists('/path/to/document.pdf');
 
       expect(result.exists).toBe(true);
-      expect(result.cachePath).toBe('/path/to/document.pdf_ocr.md');
-      expect(fs.access).toHaveBeenCalledWith('/path/to/document.pdf_ocr.md');
+      expect(result.cachePath).toBe('/path/to/document_ocr.md');
+      expect(fs.access).toHaveBeenCalledWith('/path/to/document_ocr.md');
     });
 
     it('should return exists: false when cache file does not exist', async () => {
@@ -402,7 +402,7 @@ describe('FileHandler', () => {
       const result = await fileHandler.checkOCRCacheExists('/path/to/document.pdf');
 
       expect(result.exists).toBe(false);
-      expect(result.cachePath).toBe('/path/to/document.pdf_ocr.md');
+      expect(result.cachePath).toBe('/path/to/document_ocr.md');
     });
   });
 
@@ -414,7 +414,7 @@ describe('FileHandler', () => {
       const result = await fileHandler.readOCRCache('/path/to/document.pdf');
 
       expect(result.content).toBe(cacheContent);
-      expect(fs.readFile).toHaveBeenCalledWith('/path/to/document.pdf_ocr.md', 'utf-8');
+      expect(fs.readFile).toHaveBeenCalledWith('/path/to/document_ocr.md', 'utf-8');
     });
 
     it('should throw FileInputError when cache file cannot be read', async () => {

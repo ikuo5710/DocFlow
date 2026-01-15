@@ -173,10 +173,13 @@ export class FileHandler {
 
   /**
    * OCRキャッシュファイルのパスを生成する
-   * 例: /path/to/document.pdf → /path/to/document.pdf_ocr.md
+   * 例: /path/to/document.pdf → /path/to/document_ocr.md
    */
   getOCRCachePath(originalFilePath: string): string {
-    return `${originalFilePath}_ocr.md`;
+    // 拡張子を除去してから _ocr.md を付加
+    const lastDotIndex = originalFilePath.lastIndexOf('.');
+    const basePath = lastDotIndex > 0 ? originalFilePath.slice(0, lastDotIndex) : originalFilePath;
+    return `${basePath}_ocr.md`;
   }
 
   /**
