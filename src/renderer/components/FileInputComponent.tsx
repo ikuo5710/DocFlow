@@ -6,7 +6,7 @@ import { FileInfo, FileInputError } from '../../types/file';
 import { fileInputService } from '../services/FileInputService';
 
 // Use local worker file from public folder
-pdfjs.GlobalWorkerOptions.workerSrc = './pdf.worker.min.js';
+pdfjs.GlobalWorkerOptions.workerSrc = './pdf.worker.min.mjs';
 
 interface FileInputComponentProps {
   onFilesLoaded?: (files: FileInfo[]) => void;

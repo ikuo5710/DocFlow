@@ -9,11 +9,13 @@ vi.mock('fs/promises', () => ({
 const mockOCRProcess = vi.fn();
 
 vi.mock('@mistralai/mistralai', () => ({
-  Mistral: vi.fn().mockImplementation(() => ({
-    ocr: {
-      process: mockOCRProcess,
-    },
-  })),
+  Mistral: vi.fn(function () {
+    return {
+      ocr: {
+        process: mockOCRProcess,
+      },
+    };
+  }),
 }));
 
 import * as fs from 'fs/promises';
