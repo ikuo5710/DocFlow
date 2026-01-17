@@ -102,7 +102,7 @@ graph LR
 | PDFレンダリング | PDF.js | Mozillaの信頼性、ブラウザ互換 |
 | Markdownエディタ | CodeMirror 6 | 高性能、拡張性、シンタックスハイライト |
 | OCR API | Mistral OCR | 高精度、マークダウン出力対応 |
-| テスト | Vitest 2.x | 高速、TypeScript対応 |
+| テスト | Vitest 4.x | 高速、TypeScript対応 |
 
 ## データモデル定義
 

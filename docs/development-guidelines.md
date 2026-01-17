@@ -9,7 +9,7 @@
 | ランタイム | Node.js | v24.12.0 |
 | デスクトップフレームワーク | Electron | 39.0.0 |
 | 言語 | TypeScript | 5.x |
-| テストフレームワーク | Vitest | 2.x |
+| テストフレームワーク | Vitest | 4.x |
 | OCR API | Mistral OCR | mistral-ocr-latest |
 | リンター | ESLint | 9.x |
 | フォーマッター | Prettier | 3.x |
