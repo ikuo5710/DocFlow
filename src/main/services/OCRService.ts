@@ -20,6 +20,30 @@ export class OCRService {
     this.client = new Mistral({ apiKey: key });
   }
 
+  async processMultipleFiles(
+    filePaths: string[],
+    options?: OCROptions,
+    onProgress?: (current: number, total: number, fileName: string) => void
+  ): Promise<OCRResult> {
+    // ファイル名昇順でソート
+    const sorted = [...filePaths].sort((a, b) =>
+      path.basename(a).localeCompare(path.basename(b))
+    );
+
+    const markdowns: string[] = [];
+    for (let i = 0; i < sorted.length; i++) {
+      const filePath = sorted[i];
+      onProgress?.(i + 1, sorted.length, path.basename(filePath));
+      const result = await this.processFile(filePath, options);
+      markdowns.push(result.markdown);
+    }
+
+    return {
+      markdown: markdowns.join('\n\n---\n\n'),
+      pageCount: sorted.length,
+    };
+  }
+
   async processFile(
     filePath: string,
     options?: OCROptions

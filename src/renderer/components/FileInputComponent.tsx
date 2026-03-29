@@ -11,11 +11,13 @@ pdfjs.GlobalWorkerOptions.workerSrc = './pdf.worker.min.mjs';
 interface FileInputComponentProps {
   onFilesLoaded?: (files: FileInfo[]) => void;
   onFileSelect?: (file: FileInfo) => void;
+  onBatchOCR?: (files: FileInfo[]) => void;
 }
 
 const FileInputComponent: React.FC<FileInputComponentProps> = ({
   onFilesLoaded,
   onFileSelect,
+  onBatchOCR,
 }) => {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -177,7 +179,18 @@ const FileInputComponent: React.FC<FileInputComponentProps> = ({
 
       {files.length > 0 && (
         <div className="file-preview-container">
-          <h3>Loaded Files ({files.length})</h3>
+          <div className="file-list-header">
+            <h3>Loaded Files ({files.length})</h3>
+            {onBatchOCR && files.filter((f) => f.type === 'png' || f.type === 'jpeg').length >= 2 && (
+              <button
+                type="button"
+                className="batch-ocr-button"
+                onClick={() => onBatchOCR(files.filter((f) => f.type === 'png' || f.type === 'jpeg'))}
+              >
+                Batch OCR ({files.filter((f) => f.type === 'png' || f.type === 'jpeg').length} images)
+              </button>
+            )}
+          </div>
           <ul className="file-list">
             {files.map((file, index) => (
               <li key={`${file.path}-${index}`} className="file-item">
@@ -299,10 +312,38 @@ const FileInputComponent: React.FC<FileInputComponentProps> = ({
           margin-top: 24px;
         }
 
+        .file-list-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+        }
+
         .file-preview-container h3 {
-          margin: 0 0 16px 0;
+          margin: 0;
           font-size: 18px;
           color: #333;
+        }
+
+        .batch-ocr-button {
+          padding: 8px 20px;
+          font-size: 14px;
+          font-weight: 500;
+          background-color: #10b981;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background-color 0.2s ease;
+        }
+
+        .batch-ocr-button:hover {
+          background-color: #059669;
+        }
+
+        .batch-ocr-button:focus {
+          outline: 2px solid #059669;
+          outline-offset: 2px;
         }
 
         .file-list {

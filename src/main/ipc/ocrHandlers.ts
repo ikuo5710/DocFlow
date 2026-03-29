@@ -16,6 +16,11 @@ export interface OCRProcessRequest {
   options?: OCROptions;
 }
 
+export interface OCRProcessMultipleRequest {
+  filePaths: string[];
+  options?: OCROptions;
+}
+
 export interface OCRProcessResponse {
   success: boolean;
   result?: OCRResult;
@@ -26,6 +31,49 @@ export interface OCRProcessResponse {
 }
 
 export function registerOCRHandlers(): void {
+  ipcMain.handle(
+    'ocr:processMultiple',
+    async (event, request: OCRProcessMultipleRequest): Promise<OCRProcessResponse> => {
+      try {
+        const service = getOCRService();
+        const result = await service.processMultipleFiles(
+          request.filePaths,
+          request.options,
+          (current, total, fileName) => {
+            event.sender.send('ocr:processMultiple:progress', {
+              current,
+              total,
+              fileName,
+            });
+          }
+        );
+        return {
+          success: true,
+          result,
+        };
+      } catch (error) {
+        if (error instanceof OCRError) {
+          return {
+            success: false,
+            error: {
+              message: error.message,
+              code: error.code,
+            },
+          };
+        }
+
+        return {
+          success: false,
+          error: {
+            message:
+              error instanceof Error ? error.message : 'Unknown error occurred',
+            code: 'API_ERROR',
+          },
+        };
+      }
+    }
+  );
+
   ipcMain.handle(
     'ocr:process',
     async (_event, request: OCRProcessRequest): Promise<OCRProcessResponse> => {

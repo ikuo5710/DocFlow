@@ -8,31 +8,32 @@ import { useOCR } from '../hooks/useOCR';
 import { usePageMarkdown } from '../hooks/usePageMarkdown';
 import { useFileSave } from '../hooks/useFileSave';
 
-// Electron IPC interface
-declare global {
-  interface Window {
-    electron: {
-      ipcRenderer: {
-        invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-      };
-    };
-  }
-}
+// Electron IPC interface は FileInputService.ts で宣言済み
 
 interface ParallelViewerProps {
   file: FileInfo;
+  batchFiles?: FileInfo[];
   onClose: () => void;
 }
 
-const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
+const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, batchFiles, onClose }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [splitRatio, setSplitRatio] = useState(0.5);
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(1.0);
 
-  const { isProcessing, result, error, processFile, reset } = useOCR();
+  const { isProcessing, result, error, progress, processFile, processMultipleFiles, reset } = useOCR();
 
-  const totalPages = file.pageCount ?? 1;
+  const isBatchMode = !!batchFiles && batchFiles.length > 0;
+  // バッチモード時: ファイル名昇順でソートされたファイルリスト
+  const sortedBatchFiles = React.useMemo(() => {
+    if (!batchFiles) return [];
+    return [...batchFiles].sort((a, b) => a.name.localeCompare(b.name));
+  }, [batchFiles]);
+
+  const totalPages = isBatchMode ? sortedBatchFiles.length : (file.pageCount ?? 1);
+  // バッチモード時は現在ページに対応するファイルを表示
+  const displayFile = isBatchMode ? (sortedBatchFiles[currentPage - 1] ?? file) : file;
 
   // ページごとのMarkdown管理
   const {
@@ -55,7 +56,7 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
   const [toastType, setToastType] = useState<ToastType>('success');
 
   // キャッシュ読み込み状態
-  const [loadedFromCache, setLoadedFromCache] = useState(false);
+  const [, setLoadedFromCache] = useState(false);
 
   // Debug: log file info
   useEffect(() => {
@@ -73,10 +74,17 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
   // Check for OCR cache and load it, or process OCR
   useEffect(() => {
     const loadFileContent = async () => {
-      if (!file.path) return;
-
       clearAllMarkdown();
       setLoadedFromCache(false);
+
+      // バッチモード: 複数ファイルを一括OCR
+      if (isBatchMode) {
+        const filePaths = sortedBatchFiles.map((f) => f.path);
+        processMultipleFiles(filePaths);
+        return;
+      }
+
+      if (!file.path) return;
 
       try {
         // Check if OCR cache exists
@@ -123,7 +131,7 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
     return () => {
       reset();
     };
-  }, [file.path, processFile, reset, clearAllMarkdown, initializeFromOCR, totalPages]);
+  }, [file.path, isBatchMode, sortedBatchFiles, processFile, processMultipleFiles, reset, clearAllMarkdown, initializeFromOCR, totalPages]);
 
   // Update markdown content when OCR result is available
   useEffect(() => {
@@ -138,8 +146,10 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
   }, []);
 
   const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  }, [totalPages]);
 
   const handleZoomChange = useCallback((zoom: number) => {
     setZoomLevel(zoom);
@@ -185,13 +195,24 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
       return;
     }
 
-    // デフォルトファイル名: 元ファイル名 + "_ocr.md"
-    const baseName = file.name.replace(/\.[^/.]+$/, ''); // 拡張子を除去
-    const defaultFileName = `${baseName}_ocr.md`;
+    // デフォルトファイル名
+    let defaultFileName: string;
+    let originalFilePath: string;
+    if (isBatchMode && sortedBatchFiles.length > 0) {
+      // バッチモード: ディレクトリ名を使用
+      const dirPath = sortedBatchFiles[0].path.replace(/[\\/][^\\/]+$/, '');
+      const dirName = dirPath.replace(/^.*[\\/]/, '');
+      defaultFileName = `${dirName}_ocr.md`;
+      originalFilePath = dirPath;
+    } else {
+      const baseName = file.name.replace(/\.[^/.]+$/, '');
+      defaultFileName = `${baseName}_ocr.md`;
+      originalFilePath = file.path;
+    }
 
     // メタデータ
     const metadata = {
-      originalFilePath: file.path,
+      originalFilePath,
       processedAt: new Date().toISOString(),
     };
 
@@ -203,10 +224,13 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
   }, []);
 
   const handleRetryOCR = useCallback(() => {
-    if (file.path) {
+    if (isBatchMode) {
+      const filePaths = sortedBatchFiles.map((f) => f.path);
+      processMultipleFiles(filePaths);
+    } else if (file.path) {
       processFile(file.path);
     }
-  }, [file.path, processFile]);
+  }, [isBatchMode, sortedBatchFiles, file.path, processFile, processMultipleFiles]);
 
   const leftWidth = `calc(${splitRatio * 100}% - 4px)`;
   const rightWidth = `calc(${(1 - splitRatio) * 100}% - 4px)`;
@@ -220,11 +244,17 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </button>
-          <span className="file-name">{file.name}</span>
+          <span className="file-name">
+            {isBatchMode ? `Batch OCR (${sortedBatchFiles.length} files)` : file.name}
+          </span>
         </div>
         <div className="header-right">
           {isProcessing && (
-            <span className="processing-indicator">Processing OCR...</span>
+            <span className="processing-indicator">
+              {progress
+                ? `Processing ${progress.current}/${progress.total}: ${progress.fileName}`
+                : 'Processing OCR...'}
+            </span>
           )}
           {error && (
             <button className="retry-button" onClick={handleRetryOCR}>
@@ -244,9 +274,9 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
       <div className="viewer-content">
         <div className="left-pane" style={{ width: leftWidth }}>
           <FileViewer
-            file={file}
-            currentPage={currentPage}
-            totalPages={totalPages}
+            file={displayFile}
+            currentPage={isBatchMode ? 1 : currentPage}
+            totalPages={isBatchMode ? 1 : totalPages}
             zoomLevel={zoomLevel}
             onPageChange={handlePageChange}
             onZoomChange={handleZoomChange}
@@ -272,12 +302,37 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
               </button>
             </div>
           ) : (
-            <MarkdownEditor
-              content={markdownContent}
-              onChange={handleMarkdownChange}
-              readOnly={isProcessing}
-              placeholder={isProcessing ? 'Processing OCR...' : 'OCR result will appear here...'}
-            />
+            <div className="editor-container">
+              {totalPages > 1 && (
+                <div className="page-navigation">
+                  <button
+                    className="page-nav-button"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                  >
+                    &lt;
+                  </button>
+                  <span className="page-info">
+                    {isBatchMode && sortedBatchFiles[currentPage - 1]
+                      ? `${currentPage}/${totalPages} - ${sortedBatchFiles[currentPage - 1].name}`
+                      : `${currentPage} / ${totalPages}`}
+                  </span>
+                  <button
+                    className="page-nav-button"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages}
+                  >
+                    &gt;
+                  </button>
+                </div>
+              )}
+              <MarkdownEditor
+                content={markdownContent}
+                onChange={handleMarkdownChange}
+                readOnly={isProcessing}
+                placeholder={isProcessing ? 'Processing OCR...' : 'OCR result will appear here...'}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -439,6 +494,58 @@ const ParallelViewer: React.FC<ParallelViewerProps> = ({ file, onClose }) => {
 
         .retry-button-large:hover {
           background-color: #1d4ed8;
+        }
+
+        .editor-container {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+        }
+
+        .editor-container .markdown-editor-wrapper {
+          flex: 1;
+          overflow: auto;
+        }
+
+        .page-navigation {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          padding: 8px 16px;
+          background-color: #f8fafc;
+          border-bottom: 1px solid #e5e7eb;
+          flex-shrink: 0;
+        }
+
+        .page-nav-button {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          border: 1px solid #d1d5db;
+          background-color: #ffffff;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+          color: #374151;
+          transition: background-color 0.2s;
+        }
+
+        .page-nav-button:hover:not(:disabled) {
+          background-color: #f3f4f6;
+        }
+
+        .page-nav-button:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+        }
+
+        .page-info {
+          font-size: 13px;
+          color: #6b7280;
+          white-space: nowrap;
         }
       `}</style>
 

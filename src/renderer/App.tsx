@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import FileInputComponent from './components/FileInputComponent';
 import ParallelViewer from './components/ParallelViewer';
 import FileNavigator from './components/FileNavigator';
@@ -18,6 +18,8 @@ const App: React.FC = () => {
     clearAll,
   } = useFileList();
 
+  const [batchFiles, setBatchFiles] = useState<FileInfo[] | null>(null);
+
   const handleFileSelect = useCallback(
     (file: FileInfo) => {
       addFile(file);
@@ -25,9 +27,27 @@ const App: React.FC = () => {
     [addFile]
   );
 
+  const handleBatchOCR = useCallback((imageFiles: FileInfo[]) => {
+    setBatchFiles(imageFiles);
+  }, []);
+
   const handleCloseViewer = useCallback(() => {
     clearAll();
+    setBatchFiles(null);
   }, [clearAll]);
+
+  // バッチモード: batchFilesが設定されている場合
+  if (batchFiles && batchFiles.length > 0) {
+    return (
+      <div className="app">
+        <ParallelViewer
+          file={batchFiles[0]}
+          batchFiles={batchFiles}
+          onClose={handleCloseViewer}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="app">
@@ -46,7 +66,10 @@ const App: React.FC = () => {
       ) : (
         <>
           <h1>DocFlow - AI-Friendly Document Converter</h1>
-          <FileInputComponent onFileSelect={handleFileSelect} />
+          <FileInputComponent
+            onFileSelect={handleFileSelect}
+            onBatchOCR={handleBatchOCR}
+          />
         </>
       )}
     </div>

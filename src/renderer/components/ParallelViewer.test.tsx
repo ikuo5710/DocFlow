@@ -37,6 +37,7 @@ vi.mock('./MarkdownEditor', () => ({
 }));
 
 const mockProcessFile = vi.fn();
+const mockProcessMultipleFiles = vi.fn();
 const mockReset = vi.fn();
 
 const mockUseOCR = (overrides = {}) => ({
@@ -44,7 +45,9 @@ const mockUseOCR = (overrides = {}) => ({
   result: null,
   error: null,
   errorCode: null,
+  progress: null,
   processFile: mockProcessFile,
+  processMultipleFiles: mockProcessMultipleFiles,
   reset: mockReset,
   ...overrides,
 });
